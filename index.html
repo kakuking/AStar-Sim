@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A* Simulator</title>
+</head>
+
+<style>
+    :root {
+        --grid-size-cols: 38;
+        --grid-size-rows: 14;
+        --grid-item-size: 30px;
+    }
+
+    h1{
+        text-align: center;
+    }
+
+    .selectButtonsDiv{
+        display: flex;
+        justify-content: center;
+    }
+
+    .selectButtons{
+        margin: 10px 10px 0px 10px;
+    }
+
+    #grid{
+        margin: 10px;
+        display: grid;
+        grid-template-columns: repeat(var(--grid-size-cols), 40px);
+        row-gap: 10px;
+    }
+
+    .grid-item{
+        width: var(--grid-item-size);
+        height: var(--grid-item-size);
+        background-color: aquamarine;
+
+        border-radius: 5px;
+
+        transition: all .5s ease;
+    }
+
+    .grid-item:hover{
+        background-color: aqua;
+        cursor: pointer;
+        transform: translate(-2px, -2px);
+        box-shadow: 2px 2px 5px gray;
+    }
+
+    .start{
+        background-color: greenyellow;
+    }
+
+    .goal{
+        background-color: darksalmon;
+    }
+
+    .checked{
+        background-color: gold;
+    }
+
+    
+    .wall{
+        background-color: darkgoldenrod;
+    }
+
+    .path{
+        background-color:orchid;
+    }
+
+</style>
+
+<script>
+    class node{
+        constructor(x, y){
+            this.x = x;
+            this.y = y;
+            this.f = 0;
+            this.g = 0;
+            this.inList = false;
+            this.isWall = false;
+            this.path = new Array();
+        }
+        //Manhattan distance
+        setFCost(parent, goal){
+            let h = Math.sqrt(Math.pow(this.x - goal.x, 2) + Math.pow(this.y - goal.y, 2));
+            let g = Math.sqrt(Math.pow(this.x - parent.x, 2) + Math.pow(this.y - parent.y, 2));
+            g += parent.g;
+
+            if(this.f > h + g || this.f == 0){
+                this.f = h + g;
+                this.g = g;
+                //var el = document.getElementsByClassName(`${this.x}a${this.y}`)[0];
+                //el.innerHTML = this.f.toFixed(2);
+                this.path = this.path.concat(parent.path);
+                this.path.push([parent.x, parent.y]);
+            }
+
+            if(this.inList == true){
+                return false;
+            }
+            
+            this.inList = true;
+            return true;
+        }
+
+
+        isGoal(goal, parent){
+            if(this.x ==  goal.x && goal.y == this.y){
+                console.log("reached");
+                goal.path = goal.path.concat(parent.path);
+                goal.path.push([parent.x, parent.y]);
+
+                for(let i = 1; i < goal.path.length; i++){
+                    let el = document.getElementsByClassName(goal.path[i][0] + 'a' + goal.path[i][1])[0];
+                    el.classList.add("path");
+                }
+                return true;
+            }
+            return false;
+        }
+
+        reset(){
+            this.f = 0;
+            this.inList = false;
+        }
+    }
+
+    var gridDiv;
+    var grid;
+    var numCol, numRow;
+    var start, goal;
+    var setStart, setGoal, setWall;
+    var status, goalFound;
+    var open;
+
+    function makeGrid(){
+        grid = new Array();
+        goalFound = false;
+
+        gridDiv = document.getElementById("grid");
+        var root = document.querySelector(':root');
+        numCol = getComputedStyle(root).getPropertyValue('--grid-size-cols');
+        numRow = getComputedStyle(root).getPropertyValue('--grid-size-rows');
+        for(let i = 0; i < numRow; i++){
+            let row = new Array();
+            for(let j = 0; j  < numCol; j++){
+                gridDiv.innerHTML += makeDiv(i, j);
+                row.push(new node(i, j));
+            }
+            grid.push(row);
+        }
+    }
+
+    function set(i,j){
+        if(!setStart && !setGoal&& !setWall){
+            return;
+        }
+        if(setStart == true){
+            if(start){
+                let curStart = document.getElementsByClassName(start.x + "a" + start.y)[0]
+                curStart.classList.remove("start");    
+            }
+            
+            start = grid[i][j];
+
+            open = [[start.x, start.y]];
+
+            let el = document.getElementsByClassName(i + "a" + j)[0]
+            el.classList.remove("goal");
+            el.classList.remove("wall");
+            el.classList.add("start");
+            
+            document.getElementById("status").innerHTML = "~";
+            
+        }
+        if(setGoal == true){
+            if(goal){
+                let curStart = document.getElementsByClassName(goal.x + "a" + goal.y)[0]
+                curStart.classList.remove("goal");
+            }
+            
+            goal = grid[i][j];
+
+            start.f = goal.x + goal.y - start.x - start.y;
+            start.inList = true;
+
+            let el = document.getElementsByClassName(i + "a" + j)[0]
+            el.classList.remove("start");
+            el.classList.remove("wall");
+            el.classList.add("goal");
+            
+            document.getElementById("status").innerHTML = "~";
+        }
+        if(setWall == true){
+            let el = document.getElementsByClassName(i + "a" + j)[0];
+            el.classList.remove("start");
+            el.classList.remove("goal");
+
+            if(grid[i][j].isWall == false){
+                grid[i][j].isWall = true;
+                el.classList.add("wall");
+            }else{
+                grid[i][j].isWall = false;
+                el.classList.remove("wall");
+            }
+            
+        }
+    }
+
+    function clearGrid(){
+        gridDiv.innerHTML = "";
+        makeGrid();
+    }
+    
+    function setStartfunc(){
+        setStart = true;
+        setWall = false;
+        setGoal = false;
+        document.getElementById("status").innerHTML = "Setting Start"
+    }
+
+    function setGoalfunc(){
+        setStart = false;
+        setWall = false;
+        setGoal = true;
+        document.getElementById("status").innerHTML = "Setting Goal"
+    }
+
+    function setWallfunc(el){
+        setStart = false;
+        setGoal = false;
+        setWall = true;
+        el.disabled = true;
+        document.getElementById("stopSet").disabled = false;
+        document.getElementById("status").innerHTML = "Setting Wall";
+    }
+
+    function stopWallfunc(el){
+        setWall = false;
+        el.disabled = true;
+        document.getElementById("set").disabled = false;
+        document.getElementById("status").innerHTML = "~";
+    }
+
+    function makeDiv(i, j){
+        return `<div class="grid-item ${i}a${j}" onclick="set(${i},${j})"></div>`
+    }
+
+    function AStarCts(){
+        while(AStar() == false);
+    }
+
+    function AStar(){
+        if(goalFound)
+            return;
+        if(open.length > 0){
+            let mindex = leastF(open);
+            let curX = open[mindex][0];
+            let curY = open[mindex][1];
+            open.splice(leastF(open), 1);
+
+            if(grid[curX][curY].x != start.x || grid[curX][curY].y != start.y){
+                let curStyle = document.getElementsByClassName(grid[curX][curY].x + "a" + grid[curX][curY].y)[0];
+                curStyle.classList.add("checked");
+            }
+
+            //settig successors
+            suc = [];
+            
+
+            for(let j = 0; j < 3; j++){
+                //console.log(grid[curX][curY].x + " " + grid[curX][curY].y + " " + j);
+                //row above
+                if(grid[curX][curY].x - 1 >= 0  && grid[curX][curY].y - 1  + j >= 0 && grid[curX][curY].y - 1  + j < numCol){
+                    let temp = grid[grid[curX][curY].x - 1][grid[curX][curY].y - 1 + j];
+                    if(temp.isWall != true){
+                        if(grid[grid[curX][curY].x - 1][grid[curX][curY].y - 1 + j].isGoal(goal, grid[curX][curY])){
+                            goalFound = true;
+                            return true;
+                        }
+                        if(grid[grid[curX][curY].x - 1][grid[curX][curY].y - 1 + j].setFCost(grid[curX][curY], goal)){
+                            open.push([temp.x, temp.y]);
+                        }
+                    }
+                }
+                
+                //console.log("below");
+                //row below
+                if(grid[curX][curY].x + 1 < numRow  && grid[curX][curY].y - 1  + j >= 0 && grid[curX][curY].y - 1  + j < numCol){
+                    let temp = grid[grid[curX][curY].x + 1][grid[curX][curY].y - 1 + j];
+                    if(temp.isWall != true){
+                        if(grid[grid[curX][curY].x + 1][grid[curX][curY].y - 1 + j].isGoal(goal, grid[curX][curY])){
+                            goalFound = true;
+                            return true;
+                        }
+                        if(grid[grid[curX][curY].x + 1][grid[curX][curY].y - 1 + j].setFCost(grid[curX][curY], goal)){
+                            open.push([temp.x, temp.y]);
+                        }
+                    }
+                }   
+            }
+
+            //same row
+            if(grid[curX][curY].y - 1 >= 0){
+                let temp = grid[grid[curX][curY].x][grid[curX][curY].y - 1];
+                if(temp.isWall != true){
+                    if(grid[grid[curX][curY].x][grid[curX][curY].y - 1].isGoal(goal, grid[curX][curY])){
+                        goalFound = true;
+                        return true;
+                    }
+                    if(grid[grid[curX][curY].x][grid[curX][curY].y - 1].setFCost(grid[curX][curY], goal)){
+                        open.push([temp.x, temp.y]);
+                    }
+                }
+            }
+            
+            if(grid[curX][curY].y + 1 < numCol){
+                let temp = grid[grid[curX][curY].x][grid[curX][curY].y + 1];
+                    if(temp.isWall != true){
+                    if(grid[grid[curX][curY].x][grid[curX][curY].y + 1].isGoal(goal, grid[curX][curY])){
+                        goalFound = true;
+                        return true;
+                    }
+                    if(grid[grid[curX][curY].x][grid[curX][curY].y + 1].setFCost(grid[curX][curY], goal)){
+                        open.push([temp.x, temp.y]);
+                    }
+                }
+            }
+            
+            /*
+            let str = '';
+            for(let i = 0; i < open.length; i++){
+                str += `(${open[i][0]}, ${open[i][1]}) `;
+            }
+            */
+            //console.log(str);
+            //sleep(20)
+        }
+
+        return false;
+    }
+
+    function leastF(open){
+        let min = grid[open[0][0]][open[0][1]].f;
+        let mindex = 0;
+        for(let i = 0; i < open.length; i++){
+            //console.log('wewew: ' + grid[open[i][0]][open[i][1]].f + ' weqwewe ' + min);
+            if(grid[open[i][0]][open[i][1]].f < min){
+                min = grid[open[i][0]][open[i][1]].f;
+                mindex = i;
+            }
+        }
+
+        //console.log("MInDex: " + mindex);
+
+        return mindex;
+    }
+
+    function sleep(milliseconds) {
+        const date = Date.now();
+        let currentDate = null;
+        do {
+          currentDate = Date.now();
+        } while (currentDate - date < milliseconds);
+      }
+</script>
+
+<body onload="makeGrid()">
+    <h1>A* Simulator</h1>
+    <div class="selectButtonsDiv">
+        <button class="selectButtons" onclick="setStartfunc()">Select Start</button>
+        <button class="selectButtons"  onclick="setGoalfunc()">Select Goal</button>
+        <button class="selectButtons" id="set" onclick="setWallfunc(this)">Set Walls</button>
+        <button class="selectButtons" id="stopSet" disabled="true" onclick="stopWallfunc(this)">Stop Setting Walls</button>
+        <button class="selectButtons" onclick="clearGrid()">Clear Board</button>
+    </div>
+
+    <div class="selectButtonsDiv">
+        <button class="selectButtons" onclick="AStar();AStar()">Step</button>
+        <button class="selectButtons" onclick="AStarCts()">Continous</button>
+    </div>
+
+    <div id="status">~</div>
+        
+    <div id="grid">
+
+    </div>
+
+    
+</body>
+</html>
